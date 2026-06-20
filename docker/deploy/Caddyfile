@@ -1,0 +1,20 @@
+# Caddy reverse proxy with automatic HTTPS for a public Paperclip deployment.
+#
+# Caddy obtains and renews a Let's Encrypt certificate for {$PAPERCLIP_DOMAIN}
+# automatically. It listens on 80/443 and forwards traffic to the paperclip
+# container on the internal Docker network.
+
+{
+	email {$ACME_EMAIL}
+}
+
+{$PAPERCLIP_DOMAIN} {
+	encode zstd gzip
+
+	reverse_proxy paperclip:3100 {
+		# Preserve client info so Paperclip sees the real public host/scheme.
+		header_up Host {host}
+		header_up X-Forwarded-Proto {scheme}
+		header_up X-Forwarded-For {remote_host}
+	}
+}

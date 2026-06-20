@@ -1,0 +1,79 @@
+# Always-on, public, HTTPS deployment for a single VPS.
+#
+# Stack:
+#   - caddy:     terminates TLS (automatic Let's Encrypt cert) and reverse-proxies to paperclip
+#   - paperclip: the control plane, authenticated/public mode, never published directly to the host
+#   - db:        PostgreSQL 17, data on a named volume
+#
+# All services restart automatically on crash or server reboot.
+#
+# Usage (from this docker/deploy/ directory):
+#   cp .env.example .env      # then edit .env
+#   docker compose -f docker-compose.prod.yml up -d --build
+#
+# See doc/DEPLOY-VPS.md for the full walkthrough.
+
+services:
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    environment:
+      PAPERCLIP_DOMAIN: "${PAPERCLIP_DOMAIN:?PAPERCLIP_DOMAIN must be set (e.g. paperclip.example.com)}"
+      ACME_EMAIL: "${ACME_EMAIL:?ACME_EMAIL must be set for TLS certificate registration}"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on:
+      - paperclip
+
+  paperclip:
+    build:
+      context: ../..
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    # Not published to the host. Only Caddy reaches it over the internal network.
+    expose:
+      - "3100"
+    environment:
+      HOST: "0.0.0.0"
+      PORT: "3100"
+      SERVE_UI: "true"
+      PAPERCLIP_HOME: "/paperclip"
+      DATABASE_URL: "postgres://paperclip:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set}@db:5432/paperclip"
+      PAPERCLIP_DEPLOYMENT_MODE: "authenticated"
+      PAPERCLIP_DEPLOYMENT_EXPOSURE: "public"
+      PAPERCLIP_PUBLIC_URL: "https://${PAPERCLIP_DOMAIN:?PAPERCLIP_DOMAIN must be set}"
+      BETTER_AUTH_SECRET: "${BETTER_AUTH_SECRET:?BETTER_AUTH_SECRET must be set}"
+      OPENAI_API_KEY: "${OPENAI_API_KEY:-}"
+      ANTHROPIC_API_KEY: "${ANTHROPIC_API_KEY:-}"
+    volumes:
+      - paperclip-data:/paperclip
+    depends_on:
+      db:
+        condition: service_healthy
+
+  db:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: paperclip
+      POSTGRES_PASSWORD: "${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set}"
+      POSTGRES_DB: paperclip
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U paperclip -d paperclip"]
+      interval: 2s
+      timeout: 5s
+      retries: 30
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+volumes:
+  pgdata:
+  paperclip-data:
+  caddy-data:
+  caddy-config:

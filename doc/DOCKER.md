@@ -4,6 +4,12 @@ Run Paperclip in Docker without installing Node or pnpm locally.
 
 All commands below assume you are in the **project root** (the directory containing `package.json`), not inside `docker/`.
 
+> **Deploying to a real server?** For a turnkey always-on, public HTTPS
+> deployment on a VPS (Paperclip + PostgreSQL + Caddy with automatic TLS), see
+> [`doc/DEPLOY-VPS.md`](./DEPLOY-VPS.md) and the bundle in
+> [`docker/deploy/`](../docker/deploy). The sections below cover local and
+> single-host Docker usage.
+
 ## Building the image
 
 ```sh

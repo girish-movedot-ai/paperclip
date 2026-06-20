@@ -12,6 +12,25 @@ It uses the bundled deploy stack in [`docker/deploy/`](../docker/deploy):
 
 Everything runs in Docker and restarts automatically.
 
+## Easiest path (one script)
+
+If you just want it up fast, steps 3–7 below are automated by `setup.sh`. After
+you have a host (step 1) and DNS pointed at it (step 2):
+
+```sh
+git clone https://github.com/HenkDz/paperclip.git
+cd paperclip/docker/deploy
+./setup.sh paperclip.example.com you@example.com
+```
+
+The script installs Docker if needed, generates your secrets automatically,
+opens the firewall, and starts the stack. Run it with no arguments to be
+prompted instead. Re-running it is safe — it keeps your existing secrets. When
+it finishes, do step 8 (create your admin account).
+
+The manual steps below explain exactly what the script does, in case you want to
+do it by hand or on a non-Ubuntu host.
+
 ## 1. Pick a host
 
 **Recommended: [Hetzner Cloud](https://www.hetzner.com/cloud) — a `CX22`
